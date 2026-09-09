@@ -1,6 +1,7 @@
 /** Pure data / wheel logic. ISO weekdays: Monday=1, Sunday=7. */
 export const STORAGE_KEY = 'lunchhjulet:v1';
 export const TIME_ZONE = 'Europe/Stockholm';
+export const MAX_RESTAURANTS = 200;
 export const DAYS = ['Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör', 'Sön'];
 export const DEFAULT_SETTINGS = Object.freeze({ largeGroups: false, outdoor: false, removeWinners: true, sound: true });
 export const mod = (n, m) => ((n % m) + m) % m;
@@ -29,7 +30,7 @@ export function parseConfig(input) {
   if (!data || data.version !== 1 || !Array.isArray(data.restaurants)) {
     throw new Error('JSON måste ha version: 1 och en lista som heter restaurants.');
   }
-  if (data.restaurants.length > 48) throw new Error('Högst 48 matställen får plats.');
+  if (data.restaurants.length > MAX_RESTAURANTS) throw new Error(`Högst ${MAX_RESTAURANTS} matställen får plats.`);
   if (data.exampleData !== undefined && typeof data.exampleData !== 'boolean') throw new Error('exampleData ska vara true eller false.');
   const ids = new Set();
   const restaurants = data.restaurants.map((r, index) => {
@@ -41,11 +42,11 @@ export function parseConfig(input) {
     ids.add(r.id);
     if (typeof r.name !== 'string' || !r.name.trim() || r.name.trim().length > 50) throw new Error(`${label}: namnet måste ha 1–50 tecken.`);
     for (const flag of ['largeGroups', 'outdoor']) {
-      if (typeof r[flag] !== 'boolean') throw new Error(`${r.name}: ${flag} ska vara true eller false.`);
+      if (r[flag] !== null && typeof r[flag] !== 'boolean') throw new Error(`${r.name}: ${flag} ska vara true, false eller null (okänt).`);
     }
     if (r.enabled !== undefined && typeof r.enabled !== 'boolean') throw new Error(`${r.name}: enabled ska vara true eller false.`);
-    if (!Array.isArray(r.openDays) || !r.openDays.every(d => Number.isInteger(d) && d >= 1 && d <= 7)) {
-      throw new Error(`${r.name}: openDays ska innehålla veckodagar 1–7 (måndag–söndag).`);
+    if (r.openDays !== null && (!Array.isArray(r.openDays) || !r.openDays.every(d => Number.isInteger(d) && d >= 1 && d <= 7))) {
+      throw new Error(`${r.name}: openDays ska vara null (okänt) eller en lista med veckodagar 1–7 (måndag–söndag).`);
     }
     const dates = key => {
       const values = r[key] ?? [];
@@ -62,25 +63,32 @@ export function parseConfig(input) {
     return {
       id: r.id, name: r.name.trim(), enabled: r.enabled ?? true,
       largeGroups: r.largeGroups, outdoor: r.outdoor,
-      openDays: [...new Set(r.openDays)].sort((a, b) => a - b),
+      openDays: r.openDays === null ? null : [...new Set(r.openDays)].sort((a, b) => a - b),
       closedDates: dates('closedDates'), extraOpenDates: dates('extraOpenDates'), url,
     };
   });
   return { version: 1, exampleData: data.exampleData ?? false, restaurants };
 }
 
+export function lunchDaysLabel(openDays) {
+  return openDays === null ? 'Lunchdagar okända' : openDays.map(day => DAYS[day - 1]).join(' · ') || 'Inga veckodagar';
+}
+
+/** Schedule eligibility, not a guarantee of actual opening hours.
+ * Unknown lunch days stay selectable; the UI explicitly discloses this.
+ */
 export function isOpen(restaurant, date = new Date()) {
   const { iso, weekday } = dayInfo(date);
   // An explicit closure wins over both a regular weekday and an extra opening.
   return restaurant.enabled && !restaurant.closedDates.includes(iso)
-    && (restaurant.extraOpenDates.includes(iso) || restaurant.openDays.includes(weekday));
+    && (restaurant.extraOpenDates.includes(iso) || restaurant.openDays === null || restaurant.openDays.includes(weekday));
 }
 
 export function eligibleRestaurants(config, settings, history, date = new Date()) {
   const past = new Set(history.map(h => h.restaurantId));
   return config.restaurants.filter(r => isOpen(r, date)
-    && (!settings.largeGroups || r.largeGroups)
-    && (!settings.outdoor || r.outdoor)
+    && (!settings.largeGroups || r.largeGroups === true)
+    && (!settings.outdoor || r.outdoor === true)
     && (!settings.removeWinners || !past.has(r.id)));
 }
 

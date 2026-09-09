@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { DEFAULT_SETTINGS, STORAGE_KEY, dayInfo, parseConfig, isOpen, eligibleRestaurants, randomIndex, selectedIndex, spinPlan, readState } from '../src/core.js';
+import { DEFAULT_SETTINGS, MAX_RESTAURANTS, STORAGE_KEY, dayInfo, parseConfig, isOpen, eligibleRestaurants, randomIndex, selectedIndex, spinPlan, readState } from '../src/core.js';
 
 const source = JSON.parse(readFileSync(new URL('../data/restaurants.json', import.meta.url), 'utf8'));
 const fixture = () => parseConfig({ version: 1, restaurants: [
@@ -11,9 +11,9 @@ const fixture = () => parseConfig({ version: 1, restaurants: [
 ] });
 const wednesday = new Date('2026-09-09T10:00:00Z');
 
-test('starter JSON is valid and explicitly marked as example data', () => {
-  assert.equal(parseConfig(source).restaurants.length, 8);
-  assert.equal(parseConfig(source).exampleData, true);
+test('Tripadvisor JSON contains all 121 entries, not example data', () => {
+  assert.equal(parseConfig(source).restaurants.length, 121);
+  assert.equal(parseConfig(source).exampleData, false);
 });
 test('Stockholm summer midnight is independent of device timezone', () => {
   assert.deepEqual(dayInfo(new Date('2026-09-08T22:05:00Z')), { iso: '2026-09-09', weekday: 3 });
@@ -104,7 +104,7 @@ test('accept an HTTPS restaurant URL', () => {
 test('reject oversized lists and whitespace-only names', () => {
   const config = fixture(); config.restaurants[0].name = '   ';
   assert.throws(() => parseConfig(config));
-  assert.throws(() => parseConfig({ version: 1, restaurants: Array(49).fill({}) }));
+  assert.throws(() => parseConfig({ version: 1, restaurants: Array(MAX_RESTAURANTS + 1).fill({}) }));
 });
 test('random selection rejects the modulo-biased tail', () => {
   let count = 0;
@@ -115,7 +115,7 @@ test('single-item random choice is safe and empty choice throws', () => {
   assert.equal(randomIndex(1), 0); assert.throws(() => randomIndex(0));
 });
 test('every possible winner lands under the pointer, with safe jitter margins', () => {
-  for (let count = 1; count <= 48; count++) {
+  for (let count = 1; count <= MAX_RESTAURANTS; count++) {
     for (let winner = 0; winner < count; winner++) {
       for (const start of [0, 17.5, 359.9, 4321.12]) {
         for (const jitter of [0, 0.5, 1]) {
