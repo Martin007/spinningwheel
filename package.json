@@ -1,0 +1,13 @@
+{
+  "name": "linkoping-lunchhjulet",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Ett litet lunchbeslut. Ett ganska stort hjul.",
+  "scripts": {
+    "start": "python3 -m http.server 4173",
+    "test": "node --test tests/*.test.js",
+    "check": "node --check src/app.js && node --check src/core.js && node --check src/audio.js && node --check src/motion.js"
+  },
+  "engines": { "node": ">=20" }
+}

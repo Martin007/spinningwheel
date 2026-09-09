@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f5f1e8">
+  <meta name="description" content="Snurra fram nästa lunch i Linköping. Dina matställen, dina villkor.">
+  <title>lunch. — Linköpings lunchhjul</title>
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+  <link rel="stylesheet" href="./src/style.css">
+  <script type="module" src="./src/app.js"></script>
+</head>
+<body>
+  <svg class="icon-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M19 7v5h-5M19 12a7 7 0 1 0-2 5"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="m15 5 4 4M4 20l5-1L20 8a3 3 0 0 0-4-4L5 15Z"/></symbol>
+    <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 4v6h6M3 10a9 9 0 1 1 1 8M12 7v5l3 2"/></symbol>
+    <symbol id="i-volume" viewBox="0 0 24 24"><path d="m11 4-5 4H3v8h3l5 4ZM15 8a6 6 0 0 1 0 8M18 5a10 10 0 0 1 0 14"/></symbol>
+    <symbol id="i-muted" viewBox="0 0 24 24"><path d="m11 4-5 4H3v8h3l5 4ZM16 9l6 6m0-6-6 6"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="7" r="3"/><path d="M3 20v-3a6 6 0 0 1 12 0v3M17 4a3 3 0 0 1 0 6m1 3a5 5 0 0 1 3 4v3"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+    <symbol id="i-external" viewBox="0 0 24 24"><path d="M6 18 18 6M6 6h12v12"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7"/></symbol>
+  </defs></svg>
+  <div class="page-shell">
+    <header class="header">
+      <a class="brand" href="./" aria-label="Lunchhjulet, startsida"><span class="brand-mark" aria-hidden="true">✳</span>lunch<span class="orange">.</span></a>
+      <nav aria-label="Verktyg">
+        <button id="history-open" aria-label="Historik" class="nav-button" type="button"><svg class="icon" aria-hidden="true"><use href="#i-history"/></svg><span>Historik</span><span id="history-count" class="count" hidden>0</span></button>
+        <button id="editor-open" aria-label="Matställen" class="nav-button" type="button"><svg class="icon" aria-hidden="true"><use href="#i-edit"/></svg><span>Matställen</span></button>
+        <span class="nav-divider" aria-hidden="true"></span>
+        <button id="sound" class="icon-button sound-button" type="button" aria-label="Ljud" aria-pressed="true"><svg class="icon" aria-hidden="true"><use href="#i-volume"/></svg></button>
+      </nav>
+    </header>
+
+    <main>
+      <section class="intro" aria-labelledby="title">
+        <div class="eyebrow"><span class="location-dot"></span>LINKÖPING <span class="eyebrow-dash">/</span> <span id="today">IDAG</span></div>
+        <h1 id="title">Dags för<br> <em>lunch.</em></h1>
+        <fieldset class="filters" id="filters"><legend class="sr-only">Välj vilka matställen som är med</legend>
+          <label class="filter"><span class="filter-label"><svg class="icon" aria-hidden="true"><use href="#i-users"/></svg>Stort sällskap</span><input type="checkbox" role="switch" id="large-groups"><span class="switch" aria-hidden="true"></span></label>
+          <label class="filter"><span class="filter-label"><svg class="icon" aria-hidden="true"><use href="#i-sun"/></svg>Uteservering</span><input type="checkbox" role="switch" id="outdoor"><span class="switch" aria-hidden="true"></span></label>
+          <label class="filter"><span class="filter-label"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>Uteslut tidigare vinnare</span><input type="checkbox" role="switch" id="remove-winners" checked><span class="switch" aria-hidden="true"></span></label>
+        </fieldset>
+        <button id="spin" class="spin-button" type="button" disabled><span id="spin-label">Snurra hjulet</span><span class="spin-arrow"><svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></span></button>
+        <div class="below-button"><span id="option-count">Laddar matställen…</span><button id="sample-note" class="text-button sample-note" type="button" hidden>Exempeldata <span aria-hidden="true">↗</span></button></div>
+      </section>
+
+      <section class="wheel-section" aria-label="Lunchhjulet">
+        <div class="wheel-stage" id="stage">
+          <div class="wheel-camera" id="camera">
+            <svg id="wheel" viewBox="0 0 600 600" role="img" aria-labelledby="wheel-title wheel-description">
+              <title id="wheel-title">Dagens lunchhjul</title><desc id="wheel-description">Matställen laddas.</desc>
+              <circle class="wheel-shadow" cx="300" cy="309" r="258"/>
+              <circle class="outer-guide" cx="300" cy="300" r="286"/>
+              <g id="rim-ticks" aria-hidden="true"></g>
+              <circle cx="300" cy="300" r="263" fill="#f5f1e8" stroke="#292d25" stroke-width="1.3"/>
+              <g id="segments"></g>
+              <circle cx="300" cy="300" r="253" fill="none" stroke="#292d25" stroke-width="1.1"/>
+              <circle cx="300" cy="300" r="54" fill="#292d25" opacity=".12" transform="translate(0 4)"/>
+              <circle cx="300" cy="300" r="52" fill="#f5f1e8" stroke="#292d25" stroke-width="1.2"/>
+              <circle cx="300" cy="300" r="44" fill="none" stroke="#292d25" stroke-opacity=".18"/>
+              <g transform="translate(284 274)" fill="none" stroke="#292d25" stroke-width="2" stroke-linecap="round"><path d="M5 0v11m-5-11v7a5 5 0 0 0 10 0V0M5 12v19M28 0c-7 3-8 11-8 16h8m0-16v31"/></g>
+              <text x="300" y="325" text-anchor="middle" class="hub-label">LUNCH</text>
+              <g id="pointer" class="pointer"><path d="M286 22Q300 15 314 22L307 48L300 63L293 48Z" fill="#292d25" stroke="#f5f1e8" stroke-width="3" stroke-linejoin="round"/><circle cx="300" cy="30" r="3" fill="#f5f1e8"/></g>
+            </svg>
+          </div>
+          <div id="empty" class="empty-state" hidden><span class="empty-symbol" aria-hidden="true">∅</span><h2 id="empty-title">Inga alternativ idag</h2><p id="empty-description">Ändra filter eller matställen.</p><button id="empty-action" class="small-button" type="button">Ändra matställen</button></div>
+        </div>
+        <div class="wheel-caption"><span class="caption-rule"></span><output id="wheel-caption">Dagens möjligheter</output><span class="caption-rule"></span></div>
+      </section>
+    </main>
+    <footer class="footer"><span>LINKÖPING, SVERIGE</span><span id="footer-date"></span></footer>
+  </div>
+  <p id="announcement" class="sr-only" role="status" aria-live="polite"></p>
+  <div id="toast" class="toast" role="status" hidden></div>
+
+  <dialog id="winner-dialog" class="winner-dialog" aria-labelledby="winner-title">
+    <button class="icon-button dialog-close" type="button" data-close="winner-dialog" aria-label="Stäng resultat"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button>
+    <div id="confetti" class="confetti" aria-hidden="true"></div>
+    <div class="winner-star" aria-hidden="true">✳</div><p class="eyebrow">DET BLIR</p>
+    <h2 id="winner-title"></h2><p id="winner-date" class="winner-date"></p>
+    <a id="winner-link" class="primary-link" target="_blank" rel="noopener noreferrer">Hitta hit <svg class="icon" aria-hidden="true"><use href="#i-external"/></svg></a>
+    <button id="again" class="text-button again-button" type="button">Snurra igen <span aria-hidden="true">↻</span></button>
+  </dialog>
+
+  <dialog id="history-dialog" class="panel-dialog" aria-labelledby="history-title">
+    <div class="dialog-heading"><div><p class="eyebrow">DINA LUNCHER</p><h2 id="history-title">Historik<span class="orange">.</span></h2></div><button class="icon-button" type="button" data-close="history-dialog" aria-label="Stäng historik"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button></div>
+    <div id="history-list" class="history-list"></div>
+    <div class="dialog-actions"><span class="local-note">Sparas i den här webbläsaren.</span><button id="clear-history" class="text-button danger" type="button">Rensa historik</button></div>
+  </dialog>
+
+  <dialog id="editor-dialog" class="panel-dialog editor-dialog" aria-labelledby="editor-title">
+    <div class="dialog-heading"><div><p class="eyebrow">DINA ALTERNATIV</p><h2 id="editor-title">Matställen<span class="orange">.</span></h2></div><button class="icon-button" type="button" data-close="editor-dialog" aria-label="Stäng matställen"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button></div>
+    <div class="editor-toolbar"><div class="tabs" role="tablist" aria-label="Redigera matställen"><button id="list-tab" role="tab" aria-selected="true" aria-controls="list-panel" type="button">Lista</button><button id="json-tab" role="tab" aria-selected="false" aria-controls="json-panel" tabindex="-1" type="button">JSON</button></div><div class="file-actions"><button id="import" class="text-button" type="button">Importera</button><button id="export" class="text-button" type="button">Exportera</button></div><input id="import-file" type="file" accept="application/json,.json" hidden></div>
+    <p id="example-warning" class="editor-notice" hidden>Exempeldata. Kontrollera lunchdagar, uteservering och plats för sällskap innan ni går.</p>
+    <div id="list-panel" role="tabpanel" aria-labelledby="list-tab"><div id="restaurant-list"></div><button id="add-restaurant" class="add-button" type="button">+ Lägg till matställe</button></div>
+    <div id="json-panel" role="tabpanel" aria-labelledby="json-tab" hidden><label class="sr-only" for="json-editor">Matställen som JSON</label><textarea id="json-editor" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea><p class="local-note">openDays: 1 = måndag, 7 = söndag. Datum: ÅÅÅÅ-MM-DD.</p></div>
+    <p id="editor-error" class="form-error" role="alert" hidden></p>
+    <div class="editor-footer"><p class="local-note">Ändringar sparas bara här. Exportera JSON för att dela.</p><div class="dialog-actions"><button id="restore" class="text-button" type="button">Återställ från fil</button><button id="save" class="small-button dark" type="button">Spara ändringar <svg class="icon" aria-hidden="true"><use href="#i-check"/></svg></button></div></div>
+  </dialog>
+  <noscript><div class="noscript">Aktivera JavaScript för att snurra lunchhjulet.</div></noscript>
+</body>
+</html>

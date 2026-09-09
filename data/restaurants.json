@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "exampleData": true,
+  "restaurants": [
+    { "id": "storan", "name": "Storan", "enabled": true, "largeGroups": true, "outdoor": true, "openDays": [1, 2, 3, 4, 5, 6], "closedDates": [], "extraOpenDates": [], "url": "" },
+    { "id": "von-dufva", "name": "Von Dufva", "enabled": true, "largeGroups": true, "outdoor": false, "openDays": [1, 2, 3, 4, 5], "closedDates": [], "extraOpenDates": [], "url": "" },
+    { "id": "mocca-deli", "name": "Mocca Deli", "enabled": true, "largeGroups": true, "outdoor": true, "openDays": [1, 2, 3, 4, 5, 6, 7], "closedDates": [], "extraOpenDates": [], "url": "" },
+    { "id": "yogi", "name": "Yogi", "enabled": true, "largeGroups": false, "outdoor": false, "openDays": [1, 2, 3, 4, 5], "closedDates": [], "extraOpenDates": [], "url": "" },
+    { "id": "overste-morner", "name": "Överste Mörner", "enabled": true, "largeGroups": true, "outdoor": true, "openDays": [1, 2, 3, 4, 5, 6], "closedDates": [], "extraOpenDates": [], "url": "" },
+    { "id": "halsofreak", "name": "HälsoFreak", "enabled": true, "largeGroups": false, "outdoor": false, "openDays": [1, 2, 3, 4, 5], "closedDates": [], "extraOpenDates": [], "url": "" },
+    { "id": "aioli", "name": "Aioli", "enabled": true, "largeGroups": false, "outdoor": true, "openDays": [1, 2, 3, 4, 5, 6], "closedDates": [], "extraOpenDates": [], "url": "" },
+    { "id": "1854", "name": "1854", "enabled": true, "largeGroups": true, "outdoor": true, "openDays": [1, 2, 3, 4, 5, 6, 7], "closedDates": [], "extraOpenDates": [], "url": "" }
+  ]
+}
