@@ -8,10 +8,12 @@ permissions:
   contents: read
 concurrency:
   group: site-${{ github.ref }}
-  cancel-in-progress: true
+  # Do not interrupt a Pages deployment; superseded PR checks may be cancelled.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -23,7 +25,10 @@ jobs:
     if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
     needs: test
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
+      # Job-level permissions replace the workflow-level set.
+      contents: read
       pages: write
       id-token: write
     environment:
@@ -31,15 +36,23 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/configure-pages@v5
+      - name: Configure GitHub Pages
+        id: pages
+        uses: actions/configure-pages@v5
       - name: Assemble static site (no build step or npm install)
         run: |
           mkdir _site
           cp index.html favicon.svg _site/
           cp -r src data _site/
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v4
         with:
           path: _site
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
+      - name: Explain Pages setup failure
+        if: ${{ failure() && steps.pages.outcome == 'failure' }}
+        run: |
+          echo '::error::Pages setup failed. Check Settings > Pages > Build and deployment > Source: GitHub Actions, then re-run failed jobs. See Configure GitHub Pages above for the API error.'
+          echo '### GitHub Pages setup' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Choose **Settings → Pages → Build and deployment → Source: GitHub Actions** once, then re-run failed jobs. No personal access token is required for normal deployment.' >> "$GITHUB_STEP_SUMMARY"

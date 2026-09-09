@@ -11,9 +11,12 @@ const fixture = () => parseConfig({ version: 1, restaurants: [
 ] });
 const wednesday = new Date('2026-09-09T10:00:00Z');
 
-test('Tripadvisor JSON contains all 121 entries, not example data', () => {
-  assert.equal(parseConfig(source).restaurants.length, 121);
-  assert.equal(parseConfig(source).exampleData, false);
+// This is user-maintained configuration, not the frozen Tripadvisor import.
+test('published restaurant JSON is valid without fixing its size or metadata', () => {
+  const config = parseConfig(source);
+  assert.equal(config.restaurants.length, source.restaurants.length);
+  assert.ok(config.restaurants.length <= MAX_RESTAURANTS);
+  assert.deepEqual(parseConfig(JSON.stringify(config)), config);
 });
 test('Stockholm summer midnight is independent of device timezone', () => {
   assert.deepEqual(dayInfo(new Date('2026-09-08T22:05:00Z')), { iso: '2026-09-09', weekday: 3 });

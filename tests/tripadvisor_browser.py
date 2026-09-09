@@ -19,7 +19,8 @@ html='''<!doctype html><html lang="sv"><head><meta charset="utf-8"></head><body>
 <dialog id="history-dialog"><div id="history-list"></div><button id="clear-history">Rensa</button><button data-close="history-dialog">Stäng</button></dialog>
 <dialog id="editor-dialog"><button id="list-tab">Lista</button><button id="json-tab">JSON</button><div id="editor-error" hidden></div><p id="example-warning"></p><div id="list-panel"><div id="restaurant-list"></div><button id="add-restaurant">Lägg till</button></div><div id="json-panel"><textarea id="json-editor"></textarea></div><button id="save">Spara</button><button id="restore">Återställ</button><button id="import">Importera</button><input type="file" id="import-file"><button id="export">Exportera</button><button data-close="editor-dialog">Stäng</button></dialog>
 </body></html>'''
-config=json.loads((SITE/'data/restaurants.json').read_text())
+# Fixed import fixture: production restaurant edits must not break this regression test.
+config=json.loads((ROOT/'fixtures/tripadvisor-restaurants.json').read_text())
 core=(SITE/'src/core.js').read_text().replace('export ','')
 app=re.sub(r'^import .*?;\n', '', (SITE/'src/app.js').read_text(), flags=re.M).replace('import.meta.url', "'https://fixture.test/src/app.js'")
 stubs='''

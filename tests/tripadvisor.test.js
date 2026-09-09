@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { DEFAULT_SETTINGS, MAX_RESTAURANTS, parseConfig, isOpen, eligibleRestaurants, lunchDaysLabel, readState } from '../src/core.js';
 
-const data = parseConfig(readFileSync(new URL('../data/restaurants.json', import.meta.url), 'utf8'));
+// Import-specific counts and metadata belong to an immutable fixture, not the editable live list.
+const data = parseConfig(readFileSync(new URL('./fixtures/tripadvisor-restaurants.json', import.meta.url), 'utf8'));
 const provenance = JSON.parse(readFileSync(new URL('../data/tripadvisor-source.json', import.meta.url), 'utf8'));
 const wednesday = new Date('2026-09-09T10:00:00Z');
 const eligible = settings => eligibleRestaurants(data, { ...DEFAULT_SETTINGS, ...settings }, [], wednesday);
@@ -101,4 +102,22 @@ test('Swedish schedule labels distinguish unknown, empty and selected weekdays',
   assert.equal(lunchDaysLabel(null), 'Lunchdagar okända');
   assert.equal(lunchDaysLabel([]), 'Inga veckodagar');
   assert.equal(lunchDaysLabel([1, 3, 5]), 'Mån · Ons · Fre');
+});
+
+test('a curated copy may remove entries, add its own IDs and edit imported metadata', () => {
+  const edited = structuredClone(data);
+  edited.restaurants = edited.restaurants.slice(0, 33);
+  edited.restaurants.push({ ...unknown(), id: 'own-lunch-place', name: 'Eget matställe' });
+  edited.restaurants[0].name = 'Nytt namn';
+  edited.restaurants[0].largeGroups = false;
+  edited.restaurants[0].outdoor = false;
+  edited.restaurants[0].openDays = [3];
+  const parsed = parseConfig(JSON.stringify(edited));
+  assert.equal(parsed.restaurants.length, 34);
+  assert.equal(parsed.restaurants.at(-1).id, 'own-lunch-place');
+  assert.equal(isOpen(parsed.restaurants[0], wednesday), true);
+  assert.equal(isOpen(parsed.restaurants[0], new Date('2026-09-13T10:00:00Z')), false);
+  assert.deepEqual(parseConfig(JSON.stringify(parsed)), parsed);
+  assert.equal(data.restaurants.length, 121);
+  assert.equal(data.restaurants[0].openDays, null);
 });
