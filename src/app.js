@@ -1,4 +1,4 @@
-import { DAYS, TIME_ZONE, STORAGE_KEY, DEFAULT_SETTINGS, dayInfo, parseConfig, eligibleRestaurants, randomIndex, selectedIndex, spinPlan, readState, mod } from './core.js';
+import { DAYS, MAX_RESTAURANTS, lunchDaysLabel, TIME_ZONE, STORAGE_KEY, DEFAULT_SETTINGS, dayInfo, parseConfig, eligibleRestaurants, randomIndex, selectedIndex, spinPlan, readState, mod } from './core.js';
 import { animateValue, animateStyle, reducedMotion } from './motion.js';
 import { WheelAudio } from './audio.js';
 
@@ -73,11 +73,21 @@ function paintWheel(restaurants) {
       : svgElement('path', { d: `M300 300L${p1}A252 252 0 ${step > 180 ? 1 : 0} 1 ${p2}Z`, fill: colors[i % colors.length], class: 'wheel-segment' });
     segment.append(svgElement('title', {}, restaurant.name));
     group.append(segment);
-    const p = point(182, mid);
+    const dense = items.length > 16;
+    const p = point(dense ? 241 : 182, mid);
     const available = 2 * 182 * Math.sin(Math.min(step, 120) * Math.PI / 360) * 0.86;
     const shortName = restaurant.name.length > 24 ? `${restaurant.name.slice(0, 23)}…` : restaurant.name;
-    const size = Math.min(17, Math.max(7, available / Math.max(shortName.length * 0.57, 1)));
-    const label = svgElement('text', { x: p[0], y: p[1], 'text-anchor': 'middle', 'dominant-baseline': 'middle', transform: `rotate(${mid + 90} ${p[0]} ${p[1]})`, class: 'segment-name', 'font-size': size }, shortName);
+    // Radial labels fit narrow segments; full names remain in the caption,
+    // SVG titles, screen-reader description and searchable editor.
+    const size = dense ? Math.min(11, 2 * 150 * Math.sin(step * Math.PI / 360) * 0.8)
+      : Math.min(17, Math.max(7, available / Math.max(shortName.length * 0.57, 1)));
+    const flipped = mid > 90 && mid < 270;
+    const label = svgElement('text', { x: p[0], y: p[1], 'text-anchor': dense ? (flipped ? 'start' : 'end') : 'middle', 'dominant-baseline': 'middle', transform: `rotate(${dense ? mid + (flipped ? 180 : 0) : mid + 90} ${p[0]} ${p[1]})`, class: 'segment-name', 'font-size': size }, shortName);
+    if (dense) {
+      label.setAttribute('textLength', String(Math.min(133, shortName.length * size * 0.62)));
+      label.setAttribute('lengthAdjust', 'spacingAndGlyphs');
+      label.style.letterSpacing = '0';
+    }
     group.append(label);
     if (items.length <= 16) {
       const number = point(230, mid);
@@ -103,20 +113,23 @@ function render() {
   $('history-count').hidden = !state.history.length;
   $('today').textContent = formatDate(new Date(), { weekday: 'long' }).toLocaleUpperCase('sv-SE');
   $('footer-date').textContent = formatDate(new Date(), { day: 'numeric', month: 'long', year: 'numeric' }).toLocaleUpperCase('sv-SE');
-  $('sample-note').hidden = !config.exampleData;
+  const unknownDays = config.restaurants.some(r => r.enabled && r.openDays === null);
+  $('sample-note').hidden = !config.exampleData && !unknownDays;
+  $('sample-note').textContent = config.exampleData ? 'Exempeldata · kontrollera matställena' : 'Lunchdagar ej bekräftade';
+  $('sample-note').title = 'Okända lunchdagar utesluter inte matställen. Kontrollera eller ändra dagarna i Matställen.';
   if (spinning || resultActive) return;
   choices = eligibleRestaurants(config, state.settings, state.history);
   paintWheel(choices);
   $('spin').disabled = !loaded || choices.length === 0;
   $('spin-label').textContent = choices.length === 1 ? 'Välj matställe' : 'Snurra hjulet';
-  $('option-count').textContent = loaded ? `${choices.length} alternativ idag` : 'Laddar matställen…';
+  $('option-count').textContent = loaded ? `${choices.length} alternativ${choices.some(r => r.openDays === null) ? '' : ' idag'}` : 'Laddar matställen…';
   $('wheel-caption').textContent = choices.length ? `${choices.length} matställen · lika stor chans` : 'Dagens lunchhjul';
   $('empty').hidden = !!choices.length || !loaded;
   $('camera').style.opacity = choices.length || !loaded ? '1' : '.3';
   const beforeHistory = eligibleRestaurants(config, { ...state.settings, removeWinners: false }, []).length;
   const exhausted = !choices.length && state.settings.removeWinners && beforeHistory > 0;
   $('empty-title').textContent = loadFailed && !config.restaurants.length ? 'Matställena kunde inte laddas' : exhausted ? 'Alla har vunnit.' : 'Inga alternativ idag';
-  $('empty-description').textContent = exhausted ? 'Låt tidigare vinnare vara med igen.' : 'Ändra filter eller matställen.';
+  $('empty-description').textContent = exhausted ? 'Låt tidigare vinnare vara med igen.' : (state.settings.largeGroups || state.settings.outdoor) ? 'Inga bekräftade matchningar. Ändra filter eller matställen.' : 'Ändra filter eller matställen.';
   $('empty-action').textContent = exhausted ? 'Visa tidigare vinnare' : 'Ändra matställen';
   $('empty-action').dataset.action = exhausted ? 'include-winners' : 'edit';
 }
@@ -261,17 +274,22 @@ function editorError(message = '') { $('editor-error').textContent = message; $(
 function renderRestaurantList() {
   $('restaurant-list').innerHTML = draft.restaurants.map((r, index) => `
     <details class="restaurant-card" data-index="${index}">
-      <summary><span class="restaurant-name">${escape(r.name)}</span><small>${r.openDays.map(day => DAYS[day - 1]).join(' · ') || 'Inga veckodagar'}</small></summary>
+      <summary><span class="restaurant-name">${escape(r.name)}</span><small>${lunchDaysLabel(r.openDays)}</small></summary>
       <div class="restaurant-fields">
         <label class="field-label" for="name-${index}">Namn</label><input class="field-input" id="name-${index}" data-field="name" value="${escape(r.name)}" maxlength="50" autocomplete="off">
-        <span class="field-label">Lunchdagar</span><div class="day-buttons" role="group" aria-label="Lunchdagar för ${escape(r.name)}">${DAYS.map((day, i) => `<button type="button" data-day="${i + 1}" aria-label="${['Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lördag', 'Söndag'][i]}" aria-pressed="${r.openDays.includes(i + 1)}">${day}</button>`).join('')}</div>
-        <div class="restaurant-flags">${[['enabled', 'Med i hjulet'], ['largeGroups', 'Stort sällskap'], ['outdoor', 'Uteservering']].map(([key, label]) => `<label><input type="checkbox" data-field="${key}" ${r[key] ? 'checked' : ''}>${label}</label>`).join('')}</div>
+        <span class="field-label">Lunchdagar</span><div class="day-buttons" role="group" aria-label="Lunchdagar för ${escape(r.name)}">${DAYS.map((day, i) => `<button type="button" data-day="${i + 1}" aria-label="${['Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lördag', 'Söndag'][i]}" aria-pressed="${r.openDays?.includes(i + 1) ?? false}">${day}</button>`).join('')}</div>
+        <button type="button" class="text-button" data-unknown-days aria-pressed="${r.openDays === null}">Okända lunchdagar</button>
+        <div class="restaurant-flags"><label><input type="checkbox" data-field="enabled" ${r.enabled ? 'checked' : ''}>Med i hjulet</label>
+          ${[['largeGroups', 'Stort sällskap'], ['outdoor', 'Uteservering']].map(([key, label]) => `<label>${label}<select class="field-input" data-field="${key}" aria-label="${label} för ${escape(r.name)}"><option value="unknown" ${r[key] === null ? 'selected' : ''}>Okänt</option><option value="true" ${r[key] === true ? 'selected' : ''}>Ja</option><option value="false" ${r[key] === false ? 'selected' : ''}>Nej</option></select></label>`).join('')}
+        </div>
         <label class="field-label" for="url-${index}">Webbadress (valfritt)</label><input class="field-input" id="url-${index}" data-field="url" type="url" value="${escape(r.url)}" placeholder="https://" autocomplete="off">
         <div class="date-fields"><div><label class="field-label" for="closed-${index}">Stängt: datum, separera med komma</label><input class="field-input" id="closed-${index}" data-field="closedDates" value="${escape(r.closedDates.join(', '))}" placeholder="2026-12-24, 2026-12-25"></div><div><label class="field-label" for="extra-${index}">Extra öppet: datum, separera med komma</label><input class="field-input" id="extra-${index}" data-field="extraOpenDates" value="${escape(r.extraOpenDates.join(', '))}" placeholder="2026-12-26"></div></div>
         <div class="restaurant-bottom"><button class="text-button danger" type="button" data-delete="${index}">Ta bort matställe</button></div>
       </div>
     </details>`).join('');
-  $('example-warning').hidden = !draft.exampleData;
+  $('example-warning').hidden = !draft.exampleData && !draft.restaurants.some(r => r.openDays === null);
+  $('example-warning').textContent = draft.exampleData ? 'Exempeldata: kontrollera matställena innan du använder hjulet.' : 'Lunchdagar ej bekräftade. Okänt betyder inte nej. Grupp- och utefilter tar bara med Ja.';
+  filterRestaurantList();
 }
 function captureDraft() {
   return parseConfig(editorMode === 'json' ? $('json-editor').value : draft);
@@ -289,8 +307,23 @@ function setEditorMode(mode) {
   if (mode === 'list') renderRestaurantList();
   else $('json-editor').value = JSON.stringify(draft, null, 2);
 }
+function filterRestaurantList() {
+  const normalize = value => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('sv-SE');
+  const query = normalize($('restaurant-search')?.value.trim() ?? '');
+  for (const card of $('restaurant-list').children) {
+    card.hidden = !normalize(draft.restaurants[Number(card.dataset.index)].name).includes(query);
+  }
+}
 function openEditor() {
   if (spinning) return;
+  if (!$('restaurant-search')) {
+    const search = document.createElement('input');
+    search.id = 'restaurant-search'; search.type = 'search'; search.className = 'field-input';
+    search.placeholder = 'Sök matställe'; search.setAttribute('aria-label', 'Sök matställe');
+    search.addEventListener('input', filterRestaurantList);
+    $('restaurant-list').before(search);
+  }
+  $('restaurant-search').value = '';
   draft = structuredClone(config); dirty = false; editorMode = 'list'; setEditorMode('list');
   $('editor-dialog').showModal();
 }
@@ -315,7 +348,9 @@ $('restaurant-list').addEventListener('input', event => {
   if (!field) return;
   const card = event.target.closest('[data-index]');
   const restaurant = draft.restaurants[Number(card.dataset.index)];
-  restaurant[field] = event.target.type === 'checkbox' ? event.target.checked
+  restaurant[field] = ['largeGroups', 'outdoor'].includes(field)
+    ? (event.target.value === 'unknown' ? null : event.target.value === 'true')
+    : event.target.type === 'checkbox' ? event.target.checked
     : ['closedDates', 'extraOpenDates'].includes(field) ? event.target.value.split(',').map(v => v.trim()).filter(Boolean) : event.target.value;
   if (field === 'name') card.querySelector('.restaurant-name').textContent = event.target.value;
   dirty = true;
@@ -326,9 +361,17 @@ $('restaurant-list').addEventListener('click', event => {
   const index = Number(card.dataset.index); const restaurant = draft.restaurants[index];
   if (button.dataset.day) {
     const day = Number(button.dataset.day);
-    restaurant.openDays = restaurant.openDays.includes(day) ? restaurant.openDays.filter(d => d !== day) : [...restaurant.openDays, day].sort((a, b) => a - b);
+    const days = restaurant.openDays ?? [];
+    restaurant.openDays = days.includes(day) ? days.filter(d => d !== day) : [...days, day].sort((a, b) => a - b);
+    card.querySelector('[data-unknown-days]').setAttribute('aria-pressed', 'false');
     button.setAttribute('aria-pressed', String(restaurant.openDays.includes(day)));
-    card.querySelector('small').textContent = restaurant.openDays.map(d => DAYS[d - 1]).join(' · ') || 'Inga veckodagar';
+    card.querySelector('small').textContent = lunchDaysLabel(restaurant.openDays);
+    dirty = true;
+  } else if (button.hasAttribute('data-unknown-days')) {
+    restaurant.openDays = null;
+    button.setAttribute('aria-pressed', 'true');
+    card.querySelectorAll('[data-day]').forEach(day => day.setAttribute('aria-pressed', 'false'));
+    card.querySelector('small').textContent = lunchDaysLabel(null);
     dirty = true;
   } else if (button.dataset.delete !== undefined && confirm(`Ta bort ${restaurant.name}?`)) {
     draft.restaurants.splice(index, 1); dirty = true; renderRestaurantList();
@@ -336,9 +379,11 @@ $('restaurant-list').addEventListener('click', event => {
 });
 $('json-editor').addEventListener('input', () => { dirty = true; });
 $('add-restaurant').addEventListener('click', () => {
-  if (draft.restaurants.length >= 48) { editorError('Högst 48 matställen får plats.'); return; }
-  draft.restaurants.push({ id: uid(), name: 'Nytt matställe', enabled: true, largeGroups: false, outdoor: false, openDays: [1, 2, 3, 4, 5], closedDates: [], extraOpenDates: [], url: '' });
+  if (draft.restaurants.length >= MAX_RESTAURANTS) { editorError(`Högst ${MAX_RESTAURANTS} matställen får plats.`); return; }
+  draft.restaurants.push({ id: uid(), name: 'Nytt matställe', enabled: true, largeGroups: null, outdoor: null, openDays: null, closedDates: [], extraOpenDates: [], url: '' });
   dirty = true; renderRestaurantList();
+  if ($('restaurant-search')) $('restaurant-search').value = '';
+  filterRestaurantList();
   const card = $('restaurant-list').lastElementChild; card.open = true;
   const input = card.querySelector('input'); input.focus(); input.select();
 });
