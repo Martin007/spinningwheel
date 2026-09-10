@@ -4,10 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#f5f1e8">
-  <meta name="description" content="Snurra fram nästa lunch i Linköping. Dina matställen, dina villkor.">
-  <title>lunch. — Linköpings lunchhjul</title>
+  <meta name="description" content="Välj nästa lunch i Linköping med lunchhjulet eller den enarmade banditen.">
+  <title>lunch. — Lunch i Linköping</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
   <link rel="stylesheet" href="./src/style.css">
+  <link rel="stylesheet" href="./src/slot-machine.css">
   <script type="module" src="./src/app.js"></script>
 </head>
 <body>
@@ -26,7 +27,7 @@
   </defs></svg>
   <div class="page-shell">
     <header class="header">
-      <a class="brand" href="./" aria-label="Lunchhjulet, startsida"><span class="brand-mark" aria-hidden="true">✳</span>lunch<span class="orange">.</span></a>
+      <a class="brand" href="./" aria-label="Lunch, startsida"><span class="brand-mark" aria-hidden="true">✳</span>lunch<span class="orange">.</span></a>
       <nav aria-label="Verktyg">
         <button id="history-open" aria-label="Historik" class="nav-button" type="button"><svg class="icon" aria-hidden="true"><use href="#i-history"/></svg><span>Historik</span><span id="history-count" class="count" hidden>0</span></button>
         <button id="editor-open" aria-label="Matställen" class="nav-button" type="button"><svg class="icon" aria-hidden="true"><use href="#i-edit"/></svg><span>Matställen</span></button>
@@ -39,6 +40,7 @@
       <section class="intro" aria-labelledby="title">
         <div class="eyebrow"><span class="location-dot"></span>LINKÖPING <span class="eyebrow-dash">/</span> <span id="today">IDAG</span></div>
         <h1 id="title">Dags för<br> <em>lunch.</em></h1>
+        <label class="mode-picker" for="decision-mode"><span>Välj sätt</span><select id="decision-mode" aria-label="Välj sätt att välja lunch"><option value="wheel">Lunchhjul</option><option value="slots">Enarmad bandit</option></select></label>
         <fieldset class="filters" id="filters"><legend class="sr-only">Välj vilka matställen som är med</legend>
           <label class="filter"><span class="filter-label"><svg class="icon" aria-hidden="true"><use href="#i-users"/></svg>Stort sällskap</span><input type="checkbox" role="switch" id="large-groups"><span class="switch" aria-hidden="true"></span></label>
           <label class="filter"><span class="filter-label"><svg class="icon" aria-hidden="true"><use href="#i-sun"/></svg>Uteservering</span><input type="checkbox" role="switch" id="outdoor"><span class="switch" aria-hidden="true"></span></label>
@@ -101,6 +103,6 @@
     <p id="editor-error" class="form-error" role="alert" hidden></p>
     <div class="editor-footer"><p class="local-note">Ändringar sparas bara här. Exportera JSON för att dela.</p><div class="dialog-actions"><button id="restore" class="text-button" type="button">Återställ från fil</button><button id="save" class="small-button dark" type="button">Spara ändringar <svg class="icon" aria-hidden="true"><use href="#i-check"/></svg></button></div></div>
   </dialog>
-  <noscript><div class="noscript">Aktivera JavaScript för att snurra lunchhjulet.</div></noscript>
+  <noscript><div class="noscript">Aktivera JavaScript för att välja lunch.</div></noscript>
 </body>
 </html>

@@ -49,4 +49,60 @@ export class WheelAudio {
   win() {
     [523.25, 659.25, 783.99, 1046.5].forEach((note, i) => this.tone(note, 0.7, i * 0.1, 0.3));
   }
+
+  pull() {
+    this.tone(160, 0.1, 0, 0.35, 'triangle');
+    this.tone(95, 0.13, 0.075, 0.4, 'triangle');
+  }
+
+  /** Soft motor bed. Auto-stops even if an animation fails or the tab is hidden. */
+  startReels() {
+    this.stopReels();
+    if (!this.context || !this.master || this.context.state !== 'running') return;
+    try {
+      const ctx = this.context;
+      const motor = ctx.createOscillator();
+      const gain = ctx.createGain();
+      motor.type = 'triangle';
+      motor.frequency.setValueAtTime(48, ctx.currentTime);
+      motor.frequency.linearRampToValueAtTime(82, ctx.currentTime + 0.45);
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.08, ctx.currentTime + 0.4);
+      motor.connect(gain); gain.connect(this.master);
+      this.motor = { motor, gain };
+      motor.onended = () => { motor.disconnect(); gain.disconnect(); };
+      motor.start(); motor.stop(ctx.currentTime + 7);
+    } catch { this.stopReels(); }
+  }
+
+  stopReels() {
+    if (!this.motor) return;
+    const { motor, gain } = this.motor;
+    this.motor = null;
+    try {
+      gain.gain.setTargetAtTime(0.0001, this.context.currentTime, 0.035);
+      motor.stop(this.context.currentTime + 0.15);
+    } catch { motor.disconnect(); gain.disconnect(); }
+  }
+
+  reelTick() {
+    const now = performance.now();
+    if (now - (this.lastReelTick ?? 0) < 65) return;
+    this.lastReelTick = now;
+    this.tone(240, 0.022, 0, 0.15, 'triangle');
+  }
+
+  reelStop(index) {
+    this.tone(120, 0.1, 0, 0.38, 'triangle');
+    this.tone([660, 785, 990][index], 0.16, 0.025, 0.18);
+  }
+
+  miss() { this.tone(294, 0.2, 0, 0.15); this.tone(220, 0.24, 0.13, 0.12); }
+
+  jackpot() {
+    [523.25, 659.25, 783.99, 1046.5, 783.99, 1046.5].forEach((note, i) => {
+      this.tone(note, 0.65, i * 0.105, 0.28);
+      this.tone(note * 2, 0.45, i * 0.105, 0.08);
+    });
+  }
 }

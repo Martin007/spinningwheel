@@ -3,7 +3,12 @@ export const STORAGE_KEY = 'lunchhjulet:v1';
 export const TIME_ZONE = 'Europe/Stockholm';
 export const MAX_RESTAURANTS = 200;
 export const DAYS = ['Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör', 'Sön'];
-export const DEFAULT_SETTINGS = Object.freeze({ largeGroups: false, outdoor: false, removeWinners: true, sound: true });
+/** Add future decision methods here; app.js registers their run handlers. */
+export const DECISION_MODES = Object.freeze([
+  Object.freeze({ id: 'wheel', label: 'Lunchhjul', action: 'Snurra hjulet', again: 'Snurra igen' }),
+  Object.freeze({ id: 'slots', label: 'Enarmad bandit', action: 'Dra i spaken', again: 'Dra igen' }),
+]);
+export const DEFAULT_SETTINGS = Object.freeze({ mode: 'wheel', largeGroups: false, outdoor: false, removeWinners: true, sound: true });
 export const mod = (n, m) => ((n % m) + m) % m;
 
 export function dayInfo(date = new Date()) {
@@ -121,8 +126,9 @@ export function readState(storage) {
   const s = JSON.parse(raw);
   if (!s || s.version !== 1) throw new Error('Sparad data har ett okänt format.');
   for (const key of Object.keys(DEFAULT_SETTINGS)) {
-    if (typeof s.settings?.[key] === 'boolean') empty.settings[key] = s.settings[key];
+    if (typeof DEFAULT_SETTINGS[key] === 'boolean' && typeof s.settings?.[key] === 'boolean') empty.settings[key] = s.settings[key];
   }
+  if (DECISION_MODES.some(mode => mode.id === s.settings?.mode)) empty.settings.mode = s.settings.mode;
   if (!Array.isArray(s.history)) throw new Error('Historiken kunde inte läsas.');
   const ids = new Set();
   empty.history = s.history.filter(h => h && typeof h.id === 'string' && !ids.has(h.id)

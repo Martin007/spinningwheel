@@ -1,11 +1,19 @@
-import { DAYS, MAX_RESTAURANTS, lunchDaysLabel, TIME_ZONE, STORAGE_KEY, DEFAULT_SETTINGS, dayInfo, parseConfig, eligibleRestaurants, randomIndex, selectedIndex, spinPlan, readState, mod } from './core.js';
+import { DAYS, DECISION_MODES, MAX_RESTAURANTS, lunchDaysLabel, TIME_ZONE, STORAGE_KEY, DEFAULT_SETTINGS, dayInfo, parseConfig, eligibleRestaurants, randomIndex, selectedIndex, spinPlan, readState, mod } from './core.js';
 import { animateValue, animateStyle, reducedMotion } from './motion.js';
 import { WheelAudio } from './audio.js';
+import { createSlotMachine } from './slot-machine.js';
+import { slotPlan, slotWinner } from './slot-core.js';
 
 const $ = id => document.getElementById(id);
 const SVG = 'http://www.w3.org/2000/svg';
 const colors = ['#e8ae77', '#aab58c', '#c5b3d5', '#efd395', '#e39a88', '#b8c9c0', '#c2bf96', '#d6b5a1'];
 const sound = new WheelAudio();
+const slotMachine = createSlotMachine($('stage'), sound, () => { void spin(); });
+// Registry metadata lives in core.js; presentation stays in each mode module.
+$('decision-mode').replaceChildren(...DECISION_MODES.map(mode => {
+  const option = document.createElement('option'); option.value = mode.id; option.textContent = mode.label; return option;
+}));
+const decisionMode = () => DECISION_MODES.find(mode => mode.id === state.settings.mode) ?? DECISION_MODES[0];
 let state = { settings: { ...DEFAULT_SETTINGS }, history: [], override: null };
 let baseConfig = null;
 let config = { version: 1, exampleData: false, restaurants: [] };
@@ -118,10 +126,22 @@ function render() {
   $('sample-note').textContent = config.exampleData ? 'Exempeldata · kontrollera matställena' : 'Lunchdagar ej bekräftade';
   $('sample-note').title = 'Okända lunchdagar utesluter inte matställen. Kontrollera eller ändra dagarna i Matställen.';
   if (spinning || resultActive) return;
+  const mode = decisionMode();
+  $('decision-mode').value = mode.id;
+  $('decision-mode').disabled = false;
+  document.body.dataset.mode = mode.id;
+  $('stage').dataset.mode = mode.id;
+  $('camera').hidden = mode.id !== 'wheel';
+  slotMachine.root.hidden = mode.id !== 'slots';
+  $('wheel-caption').parentElement.hidden = mode.id !== 'wheel';
+  $('stage').closest('section')?.setAttribute('aria-label', mode.label);
   choices = eligibleRestaurants(config, state.settings, state.history);
-  paintWheel(choices);
+  if (mode.id === 'wheel') paintWheel(choices);
+  else slotMachine.render(choices);
+  slotMachine.setLocked(!loaded || choices.length === 0);
+  slotMachine.root.setAttribute('aria-disabled', String(!loaded || choices.length === 0));
   $('spin').disabled = !loaded || choices.length === 0;
-  $('spin-label').textContent = choices.length === 1 ? 'Välj matställe' : 'Snurra hjulet';
+  $('spin-label').textContent = choices.length === 1 ? 'Välj matställe' : mode.id === 'slots' && (slotMachine.root.classList.contains('slot-miss') || slotMachine.root.classList.contains('slot-hit')) ? mode.again : mode.action;
   $('option-count').textContent = loaded ? `${choices.length} alternativ${choices.some(r => r.openDays === null) ? '' : ' idag'}` : 'Laddar matställen…';
   $('wheel-caption').textContent = choices.length ? `${choices.length} matställen · lika stor chans` : 'Dagens lunchhjul';
   $('empty').hidden = !!choices.length || !loaded;
@@ -136,11 +156,13 @@ function render() {
 function setSpinLock(locked) {
   $('filters').disabled = locked;
   for (const id of ['spin', 'editor-open', 'history-open', 'sample-note']) $(id).disabled = locked;
+  $('decision-mode').disabled = locked || resultActive;
+  slotMachine.setLocked(locked || resultActive || !loaded || !choices.length);
   document.body.classList.toggle('is-spinning', locked);
   $('stage').setAttribute('aria-busy', String(locked));
 }
 
-async function spin() {
+async function spinWheel() {
   if (spinning || resultActive) return;
   render(); // Re-evaluate the Stockholm date at the moment of the click.
   if (!loaded || !choices.length) return;
@@ -185,12 +207,29 @@ async function spin() {
     rotation = mod(plan.end, 360);
     $('segments').setAttribute('transform', `rotate(${rotation} 300 300)`);
     $('wheel-caption').textContent = winner.name;
+    presentWinner(winner, calm, 'wheel');
+  } catch (error) {
+    console.error('Snurren avbröts:', error);
+    toast('Snurren kunde inte avslutas. Försök igen.');
+  } finally {
+    spinning = false;
+    setSpinLock(false);
+    document.body.classList.remove('is-dramatic');
+    if (dramatic) void animateStyle($('camera'), { transform: ['scale(1.72)', 'scale(1)'] }, { duration: 0.6 });
+    $('spin').disabled = resultActive;
+    render();
+  }
+}
+
+/** Both methods reach this path only with a real, completed winner. */
+function presentWinner(winner, calm, source) {
     if (pendingRemote) { pendingRemote = false; reloadState(); }
     const entry = { id: uid(), restaurantId: winner.id, name: winner.name, at: new Date().toISOString() };
     state.history.unshift(entry);
     persist();
     resultActive = true;
-    sound.win();
+    if (source === 'wheel') sound.win();
+    $('again').firstChild.textContent = `${decisionMode().again} `;
     $('winner-title').textContent = winner.name;
     $('winner-date').textContent = formatDate(new Date(), { weekday: 'long', day: 'numeric', month: 'long' });
     $('winner-link').href = winner.url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${winner.name} Linköping`)}`;
@@ -205,18 +244,53 @@ async function spin() {
         $('confetti').append(piece);
       }
     }
+}
+
+async function spinSlots() {
+  if (spinning || resultActive) return;
+  render(); // Recheck the Stockholm date and filters at the instant of the pull.
+  if (!loaded || !choices.length) return;
+  const frozen = [...choices];
+  const initiator = document.activeElement;
+  const calm = reducedMotion() || frozen.length === 1;
+  spinning = true; setSpinLock(true);
+  $('spin-label').textContent = 'Snurrar…';
+  $('announcement').textContent = 'Banditens tre rullar snurrar.';
+  if (matchMedia('(max-width: 720px)').matches) $('stage').scrollIntoView({ block: 'center', behavior: calm ? 'instant' : 'smooth' });
+  try {
+    const plan = slotPlan(frozen.length);
+    const landed = await slotMachine.spin(frozen, plan.indices);
+    // Decide from the landed payline, not an unrelated preselected restaurant.
+    const winnerIndex = slotWinner(landed);
+    if (winnerIndex !== null) {
+      sound.jackpot();
+      await animateValue(0, 1, { duration: calm ? 0.15 : 0.85, onUpdate() {} });
+      presentWinner(frozen[winnerIndex], calm, 'slots');
+    } else {
+      $('announcement').textContent = 'Ingen träff. Dra igen.';
+      // A miss is not a lunch, and never enters history or removes a restaurant.
+      if (pendingRemote) { pendingRemote = false; reloadState(); }
+    }
   } catch (error) {
-    console.error('Snurren avbröts:', error);
+    console.error('Banditen avbröts:', error);
+    slotMachine.status.textContent = 'Försök igen.';
     toast('Snurren kunde inte avslutas. Försök igen.');
   } finally {
-    spinning = false;
-    setSpinLock(false);
-    document.body.classList.remove('is-dramatic');
-    if (dramatic) void animateStyle($('camera'), { transform: ['scale(1.72)', 'scale(1)'] }, { duration: 0.6 });
-    $('spin').disabled = resultActive;
-    render();
+    spinning = false; setSpinLock(false);
+    $('spin').disabled = resultActive; render();
+    if (!resultActive && initiator instanceof HTMLElement && !initiator.disabled) initiator.focus({ preventScroll: true });
   }
 }
+
+const modeRunners = { wheel: spinWheel, slots: spinSlots };
+async function spin() { await modeRunners[decisionMode().id](); }
+$('decision-mode').addEventListener('change', event => {
+  if (spinning || resultActive) { event.target.value = decisionMode().id; return; }
+  if (!DECISION_MODES.some(mode => mode.id === event.target.value)) return;
+  state.settings.mode = event.target.value;
+  persist(); render();
+  $('announcement').textContent = `${decisionMode().label} vald.`;
+});
 
 function closeDialog(id) {
   if (id === 'editor-dialog' && dirty && !confirm('Stäng utan att spara ändringarna?')) return;
