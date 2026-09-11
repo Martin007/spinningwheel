@@ -1,4 +1,4 @@
-import { DAYS, DECISION_MODES, MAX_RESTAURANTS, lunchDaysLabel, TIME_ZONE, STORAGE_KEY, DEFAULT_SETTINGS, dayInfo, parseConfig, eligibleRestaurants, randomIndex, selectedIndex, spinPlan, readState, mod } from './core.js';
+import { DAYS, ANIMATION_TIMING, DECISION_MODES, MAX_RESTAURANTS, lunchDaysLabel, TIME_ZONE, STORAGE_KEY, DEFAULT_SETTINGS, dayInfo, parseConfig, eligibleRestaurants, randomIndex, selectedIndex, spinPlan, readState, mod } from './core.js';
 import { animateValue, animateStyle, reducedMotion } from './motion.js';
 import { WheelAudio } from './audio.js';
 import { createSlotMachine } from './slot-machine.js';
@@ -175,7 +175,8 @@ async function spinWheel() {
   const frozen = [...choices];
   const winnerIndex = randomIndex(frozen.length);
   const winner = frozen[winnerIndex];
-  const plan = spinPlan(rotation, frozen.length, winnerIndex, randomIndex(10001) / 10000, 5 + randomIndex(3));
+  // More rotations preserve the energetic launch while deceleration lasts five times longer.
+  const plan = spinPlan(rotation, frozen.length, winnerIndex, randomIndex(10001) / 10000, (5 + randomIndex(3)) * ANIMATION_TIMING.wheelTurnsMultiplier);
   let dramatic = false;
   let previous = selectedIndex(rotation, frozen.length);
   const calm = reducedMotion() || frozen.length === 1;
@@ -184,7 +185,7 @@ async function spinWheel() {
       await animateValue(0, 1, { duration: 0.4, onUpdate: () => {} });
     } else {
       await animateValue(rotation, plan.end, {
-        duration: 8.4, ease: t => 1 - (1 - t) ** 4,
+        duration: ANIMATION_TIMING.wheelDuration, ease: t => 1 - (1 - t) ** 4,
         onUpdate(value) {
           rotation = value;
           $('segments').setAttribute('transform', `rotate(${value} 300 300)`);

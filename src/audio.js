@@ -1,3 +1,5 @@
+import { ANIMATION_TIMING } from './core.js';
+
 /** Small, synthesized sounds: no media downloads or autoplay. */
 export class WheelAudio {
   enabled = true;
@@ -71,7 +73,8 @@ export class WheelAudio {
       motor.connect(gain); gain.connect(this.master);
       this.motor = { motor, gain };
       motor.onended = () => { motor.disconnect(); gain.disconnect(); };
-      motor.start(); motor.stop(ctx.currentTime + 7);
+      // Cover the last reel and its settling bounce, while retaining a bounded safety stop.
+      motor.start(); motor.stop(ctx.currentTime + ANIMATION_TIMING.reelMotorTimeout);
     } catch { this.stopReels(); }
   }
 

@@ -1,4 +1,4 @@
-import { randomIndex, mod } from './core.js';
+import { randomIndex, mod, ANIMATION_TIMING } from './core.js';
 import { animateValue, reducedMotion } from './motion.js';
 import { reelProgress, slotWinner, SLOT_MATCH_DENOMINATOR } from './slot-core.js';
 
@@ -91,7 +91,8 @@ export function createSlotMachine(host, audio, onPull) {
         if (calm) {
           await animateValue(0, 1, { duration: 0.25, onUpdate() {} });
         } else {
-          const steps = 30 + column * 8;
+          // Keep the symbols rolling at a similar speed throughout each longer wait.
+          const steps = 30 + Math.round(column * ANIMATION_TIMING.reelStagger * 10);
           const rows = Array.from({ length: steps + 3 }, () => restaurants[randomIndex(restaurants.length)]);
           // Physical strip: the old row starts centered, the planned row ends centered.
           [-1, 0, 1].forEach((delta, i) => {
@@ -104,7 +105,7 @@ export function createSlotMachine(host, audio, onPull) {
           reel.setAttribute('aria-label', `Rulle ${column + 1} snurrar`);
           let lastStep = 0;
           await animateValue(0, steps, {
-            duration: 2.9 + column * 0.8, ease: reelProgress,
+            duration: ANIMATION_TIMING.reelFirstStop + column * ANIMATION_TIMING.reelStagger, ease: reelProgress,
             onUpdate(value) {
               strip.style.transform = `translate3d(0,${(value - steps) / rows.length * 100}%,0)`;
               // Blur only at speed, leaving the last symbols sharp and readable.
@@ -117,7 +118,7 @@ export function createSlotMachine(host, audio, onPull) {
         reel.classList.remove('at-speed');
         if (!document.hidden) audio.reelStop(column);
         if (!calm) {
-          await animateValue(0, 1, { duration: 0.18, onUpdate: n => {
+          await animateValue(0, 1, { duration: ANIMATION_TIMING.reelSettle, onUpdate: n => {
             strip.style.transform = `translate3d(0,${Math.sin(n * Math.PI) * 3}px,0)`;
           } });
           strip.style.transform = 'translate3d(0,0,0)';

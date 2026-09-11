@@ -2,6 +2,15 @@
 export const STORAGE_KEY = 'lunchhjulet:v1';
 export const TIME_ZONE = 'Europe/Stockholm';
 export const MAX_RESTAURANTS = 200;
+/** Seconds for full-motion spins only; reduced-motion and singleton paths stay quick. */
+export const ANIMATION_TIMING = Object.freeze({
+  wheelDuration: 8.4 * 5,
+  wheelTurnsMultiplier: 5,
+  reelFirstStop: 2.9,
+  reelStagger: 0.8 * 5,
+  reelSettle: 0.18,
+  reelMotorTimeout: 15,
+});
 export const DAYS = ['Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör', 'Sön'];
 /** Add future decision methods here; app.js registers their run handlers. */
 export const DECISION_MODES = Object.freeze([
